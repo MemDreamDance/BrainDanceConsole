@@ -47,7 +47,7 @@ ollama pull mxbai-embed-large
 Modify the API key in [braindance_back/config.py](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html):
 
 ```python
-API_KEY = "你的DeepSeek API密钥"
+API_KEY = "your DeepSeek API-key"
 
 BASE_URL = "https://api.deepseek.com"
 ```
