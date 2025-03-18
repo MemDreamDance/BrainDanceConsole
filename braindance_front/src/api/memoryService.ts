@@ -1,17 +1,25 @@
 // API service for communicating with the backend
+import { getUserId } from '../utils/userIdentifier'
 const API_BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+
 
 export const memoryService = {
     // Export memory snapshot
     exportMemory: async (): Promise<string> => {
         try {
-            console.log("Starting memory snapshot export...");
+            const userId = await getUserId();
+            console.log(`Starting memory snapshot export for user: ${userId}...`);
             const response = await fetch(`${API_BASE_URL}/export-memory`, {
                 method: 'POST',
-                mode: 'cors',  // Explicitly specify CORS mode
+                mode: 'cors',
                 headers: {
                     'Accept': 'application/octet-stream',
-                }
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId
+                })
             });
 
             console.log("Received response:", response.status, response.statusText);
@@ -53,13 +61,15 @@ export const memoryService = {
     // Import memory snapshot
     importMemory: async (file: File): Promise<void> => {
         try {
-            console.log("Starting file upload:", file.name, file.size, "bytes");
+            const userId = await getUserId();
+            console.log(`Starting file upload for user ${userId}:`, file.name, file.size, "bytes");
             const formData = new FormData();
             formData.append('snapshot', file);
+            formData.append('user_id', userId);
 
             const response = await fetch(`${API_BASE_URL}/import-memory`, {
                 method: 'POST',
-                mode: 'cors',  // Explicitly specify CORS mode
+                mode: 'cors',
                 body: formData,
             });
 

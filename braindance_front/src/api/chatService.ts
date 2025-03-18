@@ -1,4 +1,5 @@
 // Chat service API for communicating with the backend
+import { getUserId } from '../utils/userIdentifier'
 const API_BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;  // Ensure the port is consistent with memoryService
 
 export const chatService = {
@@ -10,7 +11,8 @@ export const chatService = {
         onError: (error: Error) => void
     ): Promise<void> => {
         try {
-            console.log("Sending message to AI (streaming):", message);
+            const userId = await getUserId();
+            console.log(`Sending message to AI (streaming) for user ${userId}:`, message);
 
             const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
@@ -21,7 +23,7 @@ export const chatService = {
                 },
                 body: JSON.stringify({
                     message,
-                    user_id: 'default_user'
+                    user_id: userId
                 })
             });
 
@@ -31,38 +33,25 @@ export const chatService = {
                 throw new Error(`Chat request failed: ${response.statusText}`);
             }
 
-            // Get the response reader
+            // 处理服务器发送的事件流
             const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error('Unable to get response stream');
-            }
-
-            // Create a text decoder
             const decoder = new TextDecoder();
 
-            // Handle SSE stream
-            let buffer = '';
+            if (!reader) {
+                throw new Error("No readable stream available");
+            }
 
             while (true) {
                 const { done, value } = await reader.read();
+                if (done) break;
 
-                if (done) {
-                    onDone();
-                    break;
-                }
-
-                // Decode the newly received data
                 const chunk = decoder.decode(value, { stream: true });
-                buffer += chunk;
-
-                // Process complete SSE messages
-                const lines = buffer.split('\n\n');
-                buffer = lines.pop() || '';
+                const lines = chunk.split('\n');
 
                 for (const line of lines) {
-                    if (line.startsWith('data: ')) {
+                    if (line.startsWith('data:')) {
                         try {
-                            const data = JSON.parse(line.substring(6));
+                            const data = JSON.parse(line.slice(5).trim());
 
                             if (data.content) {
                                 onChunk(data.content);
@@ -72,23 +61,29 @@ export const chatService = {
                                 onDone();
                                 return;
                             }
-                        } catch (e) {
-                            console.error('Failed to parse SSE data', e);
+
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                        } catch (parseError) {
+                            console.warn("Error parsing SSE data:", parseError);
                         }
                     }
                 }
             }
 
+            onDone();
         } catch (error) {
-            console.error("Chat stream request error:", error);
-            onError(error instanceof Error ? error : new Error('Unknown error'));
+            console.error("Error in streaming chat:", error);
+            onError(error instanceof Error ? error : new Error(String(error)));
         }
     },
 
     // Original non-streaming method as a fallback
     sendMessage: async (message: string): Promise<string> => {
         try {
-            console.log("Sending message to AI:", message);
+            const userId = await getUserId();
+            console.log(`Sending message to AI for user ${userId}:`, message);
 
             const response = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
@@ -98,7 +93,7 @@ export const chatService = {
                 },
                 body: JSON.stringify({
                     message,
-                    user_id: 'default_user'
+                    user_id: userId
                 })
             });
 
