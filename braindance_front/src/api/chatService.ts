@@ -1,5 +1,5 @@
 // Chat service API for communicating with the backend
-const API_BASE_URL = 'http://localhost:5002/api';  // Ensure the port is consistent with memoryService
+const API_BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;  // Ensure the port is consistent with memoryService
 
 export const chatService = {
     // Send a message to the AI and get a streaming response

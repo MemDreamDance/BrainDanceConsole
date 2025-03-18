@@ -1,5 +1,5 @@
 // API service for communicating with the backend
-const API_BASE_URL = 'http://localhost:5002/api';
+const API_BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export const memoryService = {
     // Export memory snapshot
