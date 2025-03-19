@@ -1,6 +1,6 @@
 // API service for communicating with the backend
+import { getUserId } from '../utils/userIdentifier';
 const API_BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;
-import { getUserId } from '../utils/userIdentifier'
 export const memoryService = {
     // Export memory snapshot
     exportMemory: async (): Promise<string> => {
