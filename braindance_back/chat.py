@@ -24,7 +24,7 @@ def chat_with_memories(message: str, user_id: str = "default_user") -> str:
     
     # Use streaming output
     stream = openai_client.chat.completions.create(
-        model="deepseek-chat", 
+        model="gpt-4o-mini", 
         messages=messages,
         stream=True  # Enable streaming output
     )

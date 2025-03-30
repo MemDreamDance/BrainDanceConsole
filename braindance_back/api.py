@@ -129,7 +129,7 @@ def chat():
                 
                 # Use streaming output
                 stream = openai_client.chat.completions.create(
-                    model="deepseek-chat", 
+                    model="gpt-4o-mini", 
                     messages=messages,
                     stream=True
                 )

@@ -6,7 +6,7 @@ import os
 
 # API configuration
 API_KEY = "Your API Key"
-BASE_URL = "https://api.deepseek.com"
+BASE_URL = "https://api.openai.com/v1"
 
 # Set environment variables
 os.environ["OPENAI_API_KEY"] = API_KEY
@@ -22,10 +22,10 @@ def get_collection_name(user_id="default_user"):
 # Configuration information
 config = {
     "llm": {
-        "provider": "deepseek",
+        "provider": "openai",
         "config": {
             "api_key": API_KEY,
-            "model": "deepseek-chat",
+            "model": "gpt-4o-mini",
             "temperature": 0.2,
             "max_tokens": 2000,
             "top_p": 1.0
