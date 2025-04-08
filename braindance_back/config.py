@@ -3,10 +3,33 @@ from openai import OpenAI
 from mem0 import Memory
 from qdrant_client import QdrantClient
 import os
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from qdrant_client.models import VectorParams, Distance
+import weaviate
+from weaviate.classes.config import Property, DataType, Configure
+from weaviate.classes.init import Auth, AdditionalConfig, Timeout
+from typing import Dict, List
+
+# 全局用户对话记忆（Key: user_id, Value: List[Message]）
+global_memory = {}  # Key: user_id, Value: List[message dicts]
+
+# 全局用户有效策略记忆 (Key: user_id, Value: set[string])
+global_what_worked = {}  # Key: user_id, Value: List[message dicts]
+
+# 全局用户需避免记忆 (Key: user_id, Value: set[string])
+global_what_to_avoid = {}  # Key: user_id, Value: List[message dicts]
 
 # API configuration
 API_KEY = "Your API Key"
 BASE_URL = "https://api.deepseek.com"
+
+llm = ChatOpenAI(
+    base_url=BASE_URL,
+    api_key=API_KEY,
+    model="deepseek-chat",
+    temperature=0.7,
+    max_tokens=1024
+)
 
 # Set environment variables
 os.environ["OPENAI_API_KEY"] = API_KEY
@@ -43,7 +66,7 @@ config = {
             "collection_name": BASE_COLLECTION_NAME,  # 默认集合名称，将根据用户ID动态替换
             "host": "localhost",
             "port": 6333,
-            "embedding_model_dims": 1024,
+            "embedding_model_dims": 1024
         }
     },
     "version": "v1.1",
@@ -56,6 +79,12 @@ openai_client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 qdrant_client = QdrantClient(
     host=config["vector_store"]["config"]["host"],
     port=config["vector_store"]["config"]["port"]
+)
+
+embedder_info = OpenAIEmbeddings(
+    model="nomic-embed-text",
+    openai_api_base=BASE_URL,
+    openai_api_key=API_KEY
 )
 
 # 获取用户特定的内存配置
@@ -71,5 +100,79 @@ def get_user_memory(user_id="default_user"):
     user_config = get_user_config(user_id)
     return Memory.from_config(user_config)
 
+
+def get_user_what_worked(user_id="default_user"):
+    user_config = get_user_config(user_id)
+    return user_config["vector_store"]["config"]["what_worked"]
+
+def get_user_what_to_avoid(user_id="default_user"):
+    user_config = get_user_config(user_id)
+    return user_config["vector_store"]["config"]["what_to_avoid"]
+
 # 默认内存对象
 memory = Memory.from_config(config)
+
+
+payload_schema = {
+    "conversation": str,             # 对话内容（TEXT）
+    "context_tags": list[str],       # 上下文标签（TEXT5_ARRAY）
+    "conversation_summary": str,     # 摘要文本（TEXT）
+    "what_worked": str,              # 有效策略（TEXT）
+    "what_to_avoid": str             # 需避免内容（TEXT）
+}
+
+# 定义集合参数
+COLLECTION_NAME = "episodic_memory"
+VECTOR_SIZE = 1024  # 与mxbai-embed-large模型输出维度一致
+
+def init_user_collection(user_id: str):
+    collection_name = get_collection_name(user_id)
+    qdrant_client.recreate_collection(
+        collection_name=collection_name,
+        vectors_config=VectorParams(
+            size=config["vector_store"]["config"]["embedding_model_dims"],
+            distance=Distance.COSINE
+        )
+    )
+
+def init_user_collection_v2(user_id: str):
+    # get collection name
+    collection_name = get_collection_name(user_id)
+    # create collection
+    vdb_client.collections.create(
+    name=collection_name,
+    description="Collection containing historical chat interactions and takeaways.",
+    vectorizer_config=[
+        Configure.NamedVectors.text2vec_ollama(
+            name="title_vector",
+            source_properties=["title"],
+            api_endpoint="http://ollama:11434",       # Allow Weaviate from within a Docker container to contact your Ollama instance
+            model="nomic-embed-text",
+        )
+    ],
+    properties=[
+        Property(name="conversation", data_type=DataType.TEXT),
+        Property(name="context_tags", data_type=DataType.TEXT_ARRAY),
+        Property(name="conversation_summary", data_type=DataType.TEXT),
+        Property(name="what_worked", data_type=DataType.TEXT),
+        Property(name="what_to_avoid", data_type=DataType.TEXT),       
+    ]
+)
+
+# Connect to Weaviate Cloud
+try:
+    # 连接到本地Weaviate
+    vdb_client = weaviate.connect_to_local()
+    print("连接状态:", vdb_client.is_ready())
+    
+    # 初始化集合
+    collection_name = "test_collection"
+    if not vdb_client.collections.exists(collection_name):
+        vdb_client.collections.delete(collection_name)
+        print(f"集合 {collection_name} 已存在")
+    else:
+        
+        init_user_collection_v2(collection_name)
+        print(f"集合 {collection_name} 创建成功")
+except Exception as e:
+    print(f"连接失败: {e}")

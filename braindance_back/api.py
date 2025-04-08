@@ -3,12 +3,13 @@ from flask_cors import CORS
 import os
 import tempfile
 import traceback  
-from .memory_store import export_qdrant_snapshot, import_qdrant_snapshot
-from .chat import chat_with_memories
-from .config import get_user_memory, openai_client
+from braindance_back.memory_store import export_qdrant_snapshot, import_qdrant_snapshot
+from .config import get_user_memory, openai_client, llm, global_memory
 import logging
 from flask import Response, stream_with_context
 import json
+from langchain_core.messages import HumanMessage, SystemMessage
+from .memory_v2 import add_episodic_memory, add_episodic_memory_v2, episodic_system_prompt
 
 # Set up logging
 logging.basicConfig(
@@ -120,9 +121,9 @@ def chat():
                 user_memory = get_user_memory(user_id)
                 
                 # 获取相关内存
-                relevant_memories = user_memory.search(query=message, user_id=user_id, limit=3)
+                relevant_memories = user_memory.search(query=message, user_id=user_id, limit=10)
                 memories_str = "\n".join(f"- {entry['memory']}" for entry in relevant_memories["results"])
-                
+                                
                 # 生成助手响应
                 system_prompt = f"You are a helpful AI. Answer the question based on query and memories.\nUser Memories:\n{memories_str}"
                 messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": message}]
@@ -165,6 +166,125 @@ def chat():
         
     except Exception as e:
         print(f"Error handling chat request: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    
+# 增加工作记忆
+@app.route('/api/chatV2', methods=['POST'])
+def chatV2():
+    """Handle chat requests and return AI responses in a streaming manner"""
+    try:
+        # Get request data
+        data = request.json
+        if not data or 'message' not in data:
+            return jsonify({"error": "Message cannot be empty"}), 400
+            
+        message = data['message']
+        user_id = data.get('user_id', 'default_user')
+        
+        print(f"Received chat message from user {user_id}: {message}")
+        
+        # Generate new system prompt
+        system_prompt_episodic = episodic_system_prompt(message, user_id)
+        
+        conversation = global_memory.setdefault(user_id, [])
+        max_history = 10  # 保留最近5轮对话（10条消息）
+        
+        # 过滤非系统消息并限制历史长度
+        filtered_history = [msg for msg in conversation[-max_history:] 
+        if not isinstance(msg, SystemMessage)]
+        
+        # 构建新的消息队列
+        messages = [
+            system_prompt_episodic,  # 最新系统提示
+            *filtered_history,  # 保留的历史消息
+            HumanMessage(content=message)  # 当前用户消息
+        ]
+        # 打印messages
+        print("\n Final message stack:")
+        print(messages)
+        
+        # Use a generator function for streaming response
+        def generate():
+            try:
+                response = llm.invoke(messages)
+                print("\nAI Message: ", response.content)
+                yield f"data: {json.dumps({'content': response.content})}\n\n"
+                
+                # 添加AI返回对话
+                global_memory[user_id].extend([
+                    HumanMessage(content=message),
+                    response.content
+                ])
+                
+                for i, msg in enumerate(messages, start=0):
+                    print(f"Message {i} - {msg.type.upper()}: {msg.content}")
+                    
+                # Send end marker
+                yield f"data: {json.dumps({'done': True})}\n\n"
+            except Exception as e:
+                print(f"Error generating response: {str(e)}")
+                traceback.print_exc()
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                yield f"data: {json.dumps({'done': True})}\n\n"
+            
+        return Response(stream_with_context(generate()), 
+                        mimetype="text/event-stream",
+                        headers={"Cache-Control": "no-cache", 
+                                "X-Accel-Buffering": "no",
+                                "Access-Control-Allow-Origin": "*"})
+        
+    except Exception as e:
+        print(f"Error handling chat request: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+    
+    
+@app.route('/api/save_episodic_memory', methods=['POST'])
+def save_episodic():
+    try:
+        data = request.json
+        user_id = data.get('user_id', 'default_user')
+        switch = data.get('switch', 'default_switch')
+        messages = global_memory.get(user_id, [])
+        # 如何为空直接返回
+        if not messages:
+            return jsonify({"error": "no conversation"}), 500
+        if switch == 'qdrant':
+            add_episodic_memory(messages, user_id)
+        else:
+            add_episodic_memory_v2(messages, user_id)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        logger.error(f"Save error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/del_episodic_memory', methods=['DELETE'])
+def delete_episodic_memory():
+    """Delete a user's episodic memory from global storage"""
+    try:
+        # 获取请求数据
+        data = request.json
+        if not data or 'user_id' not in data:
+            return jsonify({"error": "user_id is required"}), 400
+
+        user_id = data['user_id']
+        
+        # 检查用户是否存在
+        if user_id not in global_memory:
+            return jsonify({"error": f"User {user_id} not found"}), 404
+        
+        # 执行删除操作
+        del global_memory[user_id]
+        
+        # 返回成功响应
+        return jsonify({
+            "success": True,
+            "message": f"Episodic memory for user {user_id} deleted"
+        }), 200
+        
+    except Exception as e:
+        print(f"Deletion Error: {str(e)}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 

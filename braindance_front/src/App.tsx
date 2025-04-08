@@ -6,7 +6,7 @@ import { CyberBackground, GridLines } from './components/CyberBackground';
 import { NeonText } from './components/NeonText';
 import { MemoryButton } from './components/MemoryButton';
 import { ChatWindow } from './components/ChatWindow';
-import { motion } from 'framer-motion';
+// import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { memoryService } from './api/memoryService';
 
