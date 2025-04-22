@@ -19,7 +19,7 @@ cd BrainDanceConsole
 
 ### 2. 启动后端服务
 
-#### 方法一：使用 Docker Compose（推荐）
+#### 步骤一：使用 Docker Compose
 
 我们提供了 Docker Compose 配置文件来简化部署过程：
 
@@ -41,13 +41,11 @@ docker-compose up -d
 docker-compose ps
 ```
 
-#### 方法二：手动配置
-
-如果您不想使用 Docker Compose，也可以手动配置各个组件：
+#### 步骤二：手动配置
 
 1. 安装 Python 依赖：
 ```bash
-pip install openai flask flask-cors requests qdrant-client mem0ai
+pip install -r requirements.txt
 ```
 
 2. 安装 Qdrant 数据库：
