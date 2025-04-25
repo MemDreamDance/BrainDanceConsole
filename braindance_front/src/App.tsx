@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import styled, { ThemeProvider } from 'styled-components';
-import { memoryService } from './api/memoryService';
-import { ChatWindow } from './components/ChatWindow';
-import { CyberBackground, GridLines } from './components/CyberBackground';
-import { MemoryButton } from './components/MemoryButton';
-import { NeonText } from './components/NeonText';
+import { ThemeProvider } from 'styled-components';
 import { GlobalStyle } from './styles/globalStyles';
 import { cyberTheme } from './styles/theme';
+import { CyberBackground, GridLines } from './components/CyberBackground';
+import { NeonText } from './components/NeonText';
+import { MemoryButton } from './components/MemoryButton';
+import { ChatWindow } from './components/ChatWindow';
+// import { motion } from 'framer-motion';
+import styled from 'styled-components';
+import { memoryService } from './api/memoryService';
 
 
 const AppContainer = styled.div`

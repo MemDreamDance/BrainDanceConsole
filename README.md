@@ -8,8 +8,6 @@ Welcome to Braindance, we hope you enjoy this brainstorming journey
 
 In this example, you will have a conversation with the US Treasury Secretary to get their latest thinking and gain investment insights
 
-### Example Questions
-
 ## Getting Started
 
 ### 1. Clone the Code
@@ -19,144 +17,93 @@ git clone https://github.com/MemDreamDance/BrainDanceConsole.git
 cd BrainDanceConsole
 ```
 
-### 2. Configure the Backend
+### 2. 启动后端服务
 
-#### Install Python Dependencies
+## 步骤一：使用 Docker Compose
 
-```bash
-pip install openai flask flask-cors requests qdrant-client mem0ai
-```
+我们提供了 Docker Compose 配置文件来简化部署过程：
 
-#### Install Qdrant Database
-
-We recommend installing Qdrant using Docker:
+1. 确保已安装 Docker 和 Docker Compose
+2. 在项目根目录下运行：
 
 ```bash
-docker pull qdrant/qdrant
-docker run -p 6333:6333 -p 6334:6334 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
+cd braindance_back
+docker-compose up -d
 ```
 
-#### Install Ollama Embedding Model
+这将自动启动以下服务：
+- Weaviate 向量数据库 (端口 8080)
+- Ollama 模型服务 (端口 11434)
+
+等待所有容器启动完成后，可以使用以下命令检查状态：
 
 ```bash
-ollama pull mxbai-embed-large
+docker-compose ps
 ```
 
-#### Configure API Key
+## 步骤二：配置、运行后端项目
 
-Modify the API key in [braindance_back/config.py](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html):
-
-```python
-API_KEY = "your DeepSeek API-key"
-
-BASE_URL = "https://api.deepseek.com"
+### 1. 安装 Python 依赖：
+```bash
+pip install -r requirements.txt
 ```
 
-### 3. Configure the Frontend
+### 2. 配置 API 密钥
 
-#### Install Frontend Dependencies
+修改 [.env] 中的 API 密钥：
 
+```bash
+API_KEY = your DeepSeek API-key
+BASE_URL = https://api.deepseek.com
+MODEL_NAME = deepseek-chat
+```
+
+### 3. 启动后端服务：
+```bash
+python run_braindance.py --port 5002
+```
+
+## 步骤三：配置、运行前端
+
+### 1. 安装前端依赖：
 ```bash
 cd braindance_front
 npm install
 ```
 
-#### Configure API Address
+### 2. 配置 API 地址：
+确保 .env 中的 REACT_APP_BACKEND_URL 指向正确的后端地址：
 
-Ensure that the `API_BASE_URL` variable in [chatService.ts](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html) and [memoryService.ts](vscode-file://vscode-app/Applications/Visual Studio Code.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html) points to the correct backend address and port. The default is:
-
-```typescript
-const API_BASE_URL = 'http://localhost:5002/api';
+```env
+REACT_APP_BACKEND_URL=http://localhost:5002
 ```
 
-If you change the backend port, please update this address accordingly.
-
-### 4. Run the Project
-
-### Run the Backend Server
-
-```bash
-python run_braindance.py --port 5002
-```
-
-By default, the backend service will run on port 5002. You can specify a different port using the `--port` parameter.
-
-#### 2. Run the Frontend Application
-
+### 3. 启动前端应用：
 ```bash
 cd braindance_front
 npm start
 ```
 
-1. After successful startup, the frontend application will run on `http://localhost:3000`.
+访问 http://localhost:3000 开始使用应用。
 
-### 5. Usage Instructions
+## 项目结构
 
-1. Open your browser and visit `http://localhost:3000`
-2. Type messages in the chat window to converse with the AI
-3. The system will automatically store conversation content as memories
-4. Use the "Download Memory" button to export memory snapshots
-5. Use the "Load Memory" button to import previously saved memory snapshots
-
-## Project Structure
-
-- ```bash
-  - `braindance_back/` (Python backend code)
-    - `api.py` (Flask API interface)
-    - `chat.py` (Chat functionality implementation)
-    - `config.py` (Configuration information)
-    - `memory_store.py` (Memory storage and management)
-    - `main.py` (Program entry point)
-  
-  - `braindance_front/` (React frontend code)
-    - `src/` (Source code)
-      - `components/` (UI components)
-      - `api/` (API service calls)
-      - `styles/` (Style files)
-  
-  - `your_memory/` (Memory snapshot storage directory)
-  ```
-  
-
-## Other Configurations
-
-### LLM
-
-#### openAI
-
-```python
-API_KEY = "你的DeepSeek API密钥"
-
-BASE_URL = "https://api.openai.com"
-
-config = {
-    "llm": {
-        "provider": "openai",
-        "config": {
-            "model": "gpt-4o",
-            "temperature": 0.2,
-            "max_tokens": 2000,
-        }
-    }
-}
 ```
+- braindance_back/ (Python 后端代码)
+  - api.py (Flask API 接口)
+  - chat.py (聊天功能实现)
+  - config.py (配置信息)
+  - memory_store.py (记忆存储和管理)
+  - main.py (程序入口点)
+  - docker-compose.yaml (Docker 编排配置)
 
-#### Google AI
+- braindance_front/ (React 前端代码)
+  - src/
+    - components/ (UI 组件)
+    - api/ (API 服务调用)
+    - styles/ (样式文件)
 
-```python
-API_KEY = "你的DeepSeek API密钥"
-
-BASE_URL = "https://api.gemini.com"
-config = {
-    "llm": {
-        "provider": "litellm",
-        "config": {
-            "model": "gemini/gemini-pro",
-            "temperature": 0.2,
-            "max_tokens": 2000,
-        }
-    }
-}
+- your_memory/ (记忆快照存储目录)
 ```
 
 ## Troubleshooting
@@ -166,7 +113,7 @@ config = {
    - Whether the API address is configured correctly
    - Whether there are CORS restrictions
 2. If the memory feature is not working, please check:
-   - Whether the Qdrant database is running correctly
+   - Whether the Weaviate database is running correctly
    - Whether the connection information in the configuration file is correct
 3. If AI replies fail, please check:
    - Whether the API key is valid
