@@ -1,12 +1,16 @@
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import JsonOutputParser
-from .config import openai_client, llm, global_memory, global_what_worked, global_what_to_avoid, get_collection_name, init_user_collection, init_user_collection_v2
-from .config import config, qdrant_client, embedder_info, vdb_client
-from uuid import uuid4
-from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchText
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-import requests
+import json
 from typing import List
+
+import requests
+# from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchText
+from langchain_core.messages import SystemMessage
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+
+from .config import llm, global_memory, global_what_worked, global_what_to_avoid, get_collection_name, \
+    init_user_collection_v2
+from .config import vdb_client
+
 
 def creat_reflection_prompt():
     reflection_prompt_template = """5
@@ -71,6 +75,7 @@ def creat_reflection_prompt():
     reflection_prompt = ChatPromptTemplate.from_template(reflection_prompt_template)
     return reflection_prompt | llm | RobustJsonParser()
 
+
 class RobustJsonParser(JsonOutputParser):
     def parse(self, text: str):
         try:
@@ -81,17 +86,18 @@ class RobustJsonParser(JsonOutputParser):
         except Exception as e:
             return {"error": f"解析失败: {str(e)}", "raw": text}
 
+
 def format_conversation(messages):
-    
     # Create an empty list placeholder
     conversation = []
-    
+
     # Start from index 1 to skip the first system message
     for message in messages[1:]:
         conversation.append(f"{message.type.upper()}: {message.content}")
-    
+
     # Join with newlines
     return "\n".join(conversation)
+
 
 def embed_text(text: str) -> List[float]:
     """使用 Ollama 生成向量（保持与原始配置相同）"""
@@ -117,10 +123,10 @@ def add_episodic_memory_v2(messages, user_id="default_user"):
     # 生成嵌入向量
     conversation = format_conversation(messages)
     reflection = creat_reflection_prompt().invoke({"conversation": conversation})
-    print("/n",reflection)
-    
+    print("/n", reflection)
+
     episodic_memory = vdb_client.collections.get(get_collection_name(user_id))
-    
+
     # Insert Entry Into Collection
     episodic_memory.data.insert({
         "conversation": conversation,
@@ -130,42 +136,43 @@ def add_episodic_memory_v2(messages, user_id="default_user"):
         "what_to_avoid": reflection['what_to_avoid'],
     })
 
+
 # 增加情景记忆 by qdrant
-def add_episodic_memory(messages, user_id="default_user"):
-    # 初始化用户集合
-    collection_name = get_collection_name(user_id)
-    if not qdrant_client.collection_exists(collection_name):
-        init_user_collection(user_id)  # 确保调用初始化
-        print("/n 初始化")
-    else:
-        print("/n 已初始化")
+# def add_episodic_memory(messages, user_id="default_user"):
+#     # 初始化用户集合
+#     collection_name = get_collection_name(user_id)
+#     if not qdrant_client.collection_exists(collection_name):
+#         init_user_collection(user_id)  # 确保调用初始化
+#         print("/n 初始化")
+#     else:
+#         print("/n 已初始化")
 
-    # 生成嵌入向量
-    conversation = format_conversation(messages)
-    reflection = creat_reflection_prompt().invoke({"conversation": conversation})
-    print("/n",reflection)
-    
-    summary = reflection.get('conversation_summary', "")
-    embedding = embed_text([summary])[0]
+#     # 生成嵌入向量
+#     conversation = format_conversation(messages)
+#     reflection = creat_reflection_prompt().invoke({"conversation": conversation})
+#     print("/n",reflection)
 
-    # 构造Qdrant数据点
-    point = PointStruct(
-        id=str(uuid4()),
-        vector=embedding,
-        payload={
-            "conversation": conversation,
-            "context_tags": reflection.get('context_tags', []),
-            "conversation_summary": reflection.get('conversation_summary', ""),
-            "what_worked": reflection.get('what_worked', ""),
-            "what_to_avoid": reflection.get('what_to_avoid', "")
-        }
-    )
+#     summary = reflection.get('conversation_summary', "")
+#     embedding = embed_text([summary])[0]
 
-    # 批量插入
-    qdrant_client.upsert(
-        collection_name=collection_name,
-        points=[point]
-    )
+#     # 构造Qdrant数据点
+#     point = PointStruct(
+#         id=str(uuid4()),
+#         vector=embedding,
+#         payload={
+#             "conversation": conversation,
+#             "context_tags": reflection.get('context_tags', []),
+#             "conversation_summary": reflection.get('conversation_summary', ""),
+#             "what_worked": reflection.get('what_worked', ""),
+#             "what_to_avoid": reflection.get('what_to_avoid', "")
+#         }
+#     )
+
+#     # 批量插入
+#     qdrant_client.upsert(
+#         collection_name=collection_name,
+#         points=[point]
+#     )
 
 def episodic_recall(query, user_id="default_user"):
     # Load Database Collection
@@ -179,49 +186,49 @@ def episodic_recall(query, user_id="default_user"):
     return memory
 
 
-def episodic_recall_V2(query: str, user_id: str = "default_user", alpha=0.5):
-    collection_name = get_collection_name(user_id)
-    
-    # 生成双路查询条件
-    vector = embedder_info.embed_query(query)
-    bm25_filter = Filter(
-        must=[FieldCondition(key="conversation", match=MatchText(text=query))]
-    )
-
-    # 混合检索实现
-    vector_results = qdrant_client.search(
-        collection_name=collection_name,
-        query_vector=vector,
-        limit=5
-    )
-    
-    keyword_results = qdrant_client.scroll(
-        collection_name=collection_name,
-        scroll_filter=bm25_filter,
-        limit=5
-    )
-
-    # 结果融合算法
-    combined = hybrid_merge(
-        vector_results, 
-        keyword_results,
-        alpha=alpha
-    )
-    return combined[:3]  # 返回Top3结果
+# def episodic_recall_V2(query: str, user_id: str = "default_user", alpha=0.5):
+#     collection_name = get_collection_name(user_id)
+#
+#     # 生成双路查询条件
+#     vector = embedder_info.embed_query(query)
+#     bm25_filter = Filter(
+#         must=[FieldCondition(key="conversation", match=MatchText(text=query))]
+#     )
+#
+#     # 混合检索实现
+#     vector_results = qdrant_client.search(
+#         collection_name=collection_name,
+#         query_vector=vector,
+#         limit=5
+#     )
+#
+#     keyword_results = qdrant_client.scroll(
+#         collection_name=collection_name,
+#         scroll_filter=bm25_filter,
+#         limit=5
+#     )
+#
+#     # 结果融合算法
+#     combined = hybrid_merge(
+#         vector_results,
+#         keyword_results,
+#         alpha=alpha
+#     )
+#     return combined[:3]  # 返回Top3结果
 
 def hybrid_merge(vector_res, keyword_res, alpha):
     # 实现得分加权融合算法
     scores = {}
     for idx, item in enumerate(vector_res):
         scores[item.id] = alpha * (1 - item.score)  # Qdrant返回余弦相似度得分
-    
+
     for idx, item in enumerate(keyword_res):
         bm25_score = (idx + 1) / len(keyword_res)  # 简化的BM25得分估算
         if item.id in scores:
             scores[item.id] += (1 - alpha) * bm25_score
         else:
             scores[item.id] = (1 - alpha) * bm25_score
-    
+
     # 合并去重并排序
     all_items = {item.id: item for item in vector_res + keyword_res}
     sorted_items = sorted(
@@ -237,15 +244,15 @@ def episodic_system_prompt(query: str, user_id: str):
     memory = episodic_recall(query, user_id)
 
     current_conversation = memory.objects[0].properties['conversation']
-    
+
     # 使用正确的默认值初始化
     conversations = global_memory.get(user_id, [])
     what_worked = global_what_worked.get(user_id, set())  # 使用 set() 作为默认值
     what_to_avoid = global_what_to_avoid.get(user_id, set())  # 使用 set() 作为默认值
-    
+
     if current_conversation not in conversations:
         conversations.append(current_conversation)
-    
+
     # 将新的内容添加到集合中
     what_worked.update(set(memory.objects[0].properties['what_worked'].split('. ')))
     what_to_avoid.update(set(memory.objects[0].properties['what_to_avoid'].split('. ')))
@@ -256,10 +263,10 @@ def episodic_system_prompt(query: str, user_id: str):
 
     # 获取消息内容而不是消息对象
     previous_convos = [
-        conv.content if hasattr(conv, 'content') else str(conv)
-        for conv in conversations[-4:] 
-        if conv != current_conversation
-    ][-3:]
+                          conv.content if hasattr(conv, 'content') else str(conv)
+                          for conv in conversations[-4:]
+                          if conv != current_conversation
+                      ][-3:]
 
     # Create prompt with accumulated history
     episodic_prompt = f"""You are a helpful AI Assistant. Answer the user's questions to the best of your ability.
@@ -271,5 +278,5 @@ def episodic_system_prompt(query: str, user_id: str):
     What to avoid: {' '.join(what_to_avoid)}
     
     Use these memories as context for your response to the user."""
-    
+
     return SystemMessage(content=episodic_prompt)

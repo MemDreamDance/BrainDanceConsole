@@ -21,6 +21,17 @@ services:
       - "11434:11434"  # 只映射必要端口
     volumes:
       - ollama_data:/root/.ollama  # 持久化模型数据
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        /bin/ollama serve
+        pid=$!
+        sleep 5
+        echo "🔴 Retrieve mxbai-embed-large model..."
+        ollama pull mxbai-embed-large
+        echo "🟢 Done!"
+        wait $pid
 
 networks:
   braindance_net:  # 定义统一网络

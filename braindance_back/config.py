@@ -1,14 +1,12 @@
 # Configuration information
+import os
+import weaviate
 from openai import OpenAI
 from mem0 import Memory
-from qdrant_client import QdrantClient
-import os
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from qdrant_client.models import VectorParams, Distance
-import weaviate
+from os import getenv
 from weaviate.classes.config import Property, DataType, Configure
-from weaviate.classes.init import Auth, AdditionalConfig, Timeout
-from typing import Dict, List
+from dotenv import load_dotenv
 
 # 全局用户对话记忆（Key: user_id, Value: List[Message]）
 global_memory = {}  # Key: user_id, Value: List[message dicts]
@@ -19,14 +17,17 @@ global_what_worked = {}  # Key: user_id, Value: List[message dicts]
 # 全局用户需避免记忆 (Key: user_id, Value: set[string])
 global_what_to_avoid = {}  # Key: user_id, Value: List[message dicts]
 
+load_dotenv(verbose=True)
+
 # API configuration
-API_KEY = "Your API Key"
-BASE_URL = "https://api.deepseek.com"
+API_KEY = getenv("API_KEY")
+BASE_URL = getenv("BASE_URL")
+MODEL_NAME = getenv("MODEL_NAME")
 
 llm = ChatOpenAI(
     base_url=BASE_URL,
     api_key=API_KEY,
-    model="deepseek-chat",
+    model=MODEL_NAME,
     temperature=0.7,
     max_tokens=1024
 )
@@ -61,11 +62,11 @@ config = {
         }
     },
     "vector_store": {
-        "provider": "qdrant",
+        "provider": "weaviate",
         "config": {
             "collection_name": BASE_COLLECTION_NAME,  # 默认集合名称，将根据用户ID动态替换
-            "host": "localhost",
-            "port": 6333,
+            "cluster_url": "http://localhost:8080",
+            "auth_client_secret": None,
             "embedding_model_dims": 1024
         }
     },
@@ -76,10 +77,10 @@ config = {
 openai_client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
 
 # Create a direct Qdrant client instance for snapshot operations
-qdrant_client = QdrantClient(
-    host=config["vector_store"]["config"]["host"],
-    port=config["vector_store"]["config"]["port"]
-)
+# qdrant_client = QdrantClient(
+#     host=config["vector_store"]["config"]["host"],
+#     port=config["vector_store"]["config"]["port"]
+# )
 
 embedder_info = OpenAIEmbeddings(
     model="nomic-embed-text",
@@ -125,15 +126,15 @@ payload_schema = {
 COLLECTION_NAME = "episodic_memory"
 VECTOR_SIZE = 1024  # 与mxbai-embed-large模型输出维度一致
 
-def init_user_collection(user_id: str):
-    collection_name = get_collection_name(user_id)
-    qdrant_client.recreate_collection(
-        collection_name=collection_name,
-        vectors_config=VectorParams(
-            size=config["vector_store"]["config"]["embedding_model_dims"],
-            distance=Distance.COSINE
-        )
-    )
+# def init_user_collection(user_id: str):
+#     collection_name = get_collection_name(user_id)
+#     qdrant_client.recreate_collection(
+#         collection_name=collection_name,
+#         vectors_config=VectorParams(
+#             size=config["vector_store"]["config"]["embedding_model_dims"],
+#             distance=Distance.COSINE
+#         )
+#     )
 
 def init_user_collection_v2(user_id: str):
     # get collection name
