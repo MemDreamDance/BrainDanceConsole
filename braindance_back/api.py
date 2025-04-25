@@ -5,8 +5,10 @@ from .config import get_user_memory, openai_client, llm, global_memory
 import logging
 from flask import Response, stream_with_context
 import json
+import os
 from langchain_core.messages import HumanMessage, SystemMessage
 from .memory_v2 import add_episodic_memory_v2
+from .memory_store import export_weaviate_snapshot
 
 # Set up logging
 logging.basicConfig(
@@ -19,34 +21,36 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)
 
-# @app.route('/api/export-memory', methods=['POST'])
-# def export_memory():
-#     """Export memory snapshot and return file download"""
-#     try:
-#         data = request.json or {}
-#         user_id = data.get('user_id', 'default_user')
+@app.route('/api/export-memory', methods=['POST'])
+def export_memory():
+    """Export memory snapshot and return file download"""
+    try:
+        data = request.json or {}
+        user_id = data.get('user_id', 'default_user')
 
-#         # 使用用户特定集合导出快照
-#         snapshot_path = export_qdrant_snapshot(user_id=user_id)
+        # 使用用户特定集合导出快照
+        snapshot_path = export_weaviate_snapshot(user_id=user_id)
 
-#         if not snapshot_path or not os.path.exists(snapshot_path):
-#             return jsonify({"error": "Snapshot export failed"}), 500
+        if not snapshot_path or not os.path.exists(snapshot_path):
+            return jsonify({"error": "Snapshot export failed"}), 500
 
-#         # Return to file download
-#         return send_file(
-#             snapshot_path,
-#             as_attachment=True,
-#             download_name=os.path.basename(snapshot_path),
-#             mimetype='application/octet-stream'
-#         )
-#     except Exception as e:
-#         print(f"Export Error: {str(e)}")
-#         traceback.print_exc()
-#         return jsonify({"error": str(e)}), 500
+        # Return to file download
+        return send_file(
+            snapshot_path,
+            as_attachment=True,
+            download_name=os.path.basename(snapshot_path),
+            mimetype='application/octet-stream'
+        )
+    except Exception as e:
+        print(f"Export Error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
-# @app.route('/api/import-memory', methods=['POST'])
-# def import_memory():
-#     """Importing a memory snapshot from an uploaded file"""
+@app.route('/api/import-memory', methods=['POST'])
+def import_memory():
+    """Importing a memory snapshot from an uploaded file"""
+    return jsonify({"error": "Not implemented"}), 501
+
 #     temp_file_path = None
 #     try:
 #         # 获取用户ID
