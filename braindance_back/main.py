@@ -4,7 +4,7 @@ import argparse
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=5000)
+    parser.add_argument('--port', type=int, default=5002)
     parser.add_argument('--host', type=str, default='0.0.0.0')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()

@@ -19,7 +19,7 @@ cd BrainDanceConsole
 
 ### 2. 启动后端服务
 
-#### 步骤一：使用 Docker Compose
+## 步骤一：使用 Docker Compose
 
 我们提供了 Docker Compose 配置文件来简化部署过程：
 
@@ -41,56 +41,44 @@ docker-compose up -d
 docker-compose ps
 ```
 
-#### 步骤二：手动配置
+## 步骤二：配置、运行后端项目
 
-1. 安装 Python 依赖：
+### 1. 安装 Python 依赖：
 ```bash
 pip install -r requirements.txt
 ```
 
-2. 安装 Qdrant 数据库：
+### 2. 配置 API 密钥
+
+修改 [.env] 中的 API 密钥：
+
 ```bash
-docker pull qdrant/qdrant
-docker run -p 6333:6333 -p 6334:6334 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
+API_KEY = your DeepSeek API-key
+BASE_URL = https://api.deepseek.com
+MODEL_NAME = deepseek-chat
 ```
 
-3. 安装 Ollama 嵌入模型：
+### 3. 启动后端服务：
 ```bash
-ollama pull mxbai-embed-large
+python run_braindance.py --port 5002
 ```
 
-### 3. 配置 API 密钥
+## 步骤三：配置、运行前端
 
-修改 [braindance_back/config.py] 中的 API 密钥：
-
-```python
-API_KEY = "your DeepSeek API-key"
-BASE_URL = "https://api.deepseek.com"
-```
-
-### 4. 配置前端
-
-1. 安装前端依赖：
+### 1. 安装前端依赖：
 ```bash
 cd braindance_front
 npm install
 ```
 
-2. 配置 API 地址：
-确保 chatService.ts 和 memoryService.ts 中的 API_BASE_URL 指向正确的后端地址：
+### 2. 配置 API 地址：
+确保 .env 中的 REACT_APP_BACKEND_URL 指向正确的后端地址：
 
-```typescript
-const API_BASE_URL = 'http://localhost:5002/api';
+```env
+REACT_APP_BACKEND_URL=http://localhost:5002
 ```
 
-### 5. 运行项目
-
-1. 启动后端服务：
-```bash
-python run_braindance.py --port 5002
-```
-
-2. 启动前端应用：
+### 3. 启动前端应用：
 ```bash
 cd braindance_front
 npm start
@@ -118,46 +106,6 @@ npm start
 - your_memory/ (记忆快照存储目录)
 ```
 
-## 其他配置
-
-### LLM 配置
-
-#### OpenAI
-
-```python
-API_KEY = "你的 DeepSeek API 密钥"
-BASE_URL = "https://api.openai.com"
-
-config = {
-    "llm": {
-        "provider": "openai",
-        "config": {
-            "model": "gpt-4",
-            "temperature": 0.2,
-            "max_tokens": 2000,
-        }
-    }
-}
-```
-
-#### Google AI
-
-```python
-API_KEY = "你的 DeepSeek API 密钥"
-BASE_URL = "https://api.gemini.com"
-
-config = {
-    "llm": {
-        "provider": "litellm",
-        "config": {
-            "model": "gemini/gemini-pro",
-            "temperature": 0.2,
-            "max_tokens": 2000,
-        }
-    }
-}
-```
-
 ## Troubleshooting
 
 1. If the frontend cannot connect to the backend, please check:
@@ -165,7 +113,7 @@ config = {
    - Whether the API address is configured correctly
    - Whether there are CORS restrictions
 2. If the memory feature is not working, please check:
-   - Whether the Qdrant database is running correctly
+   - Whether the Weaviate database is running correctly
    - Whether the connection information in the configuration file is correct
 3. If AI replies fail, please check:
    - Whether the API key is valid
