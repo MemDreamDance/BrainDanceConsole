@@ -126,6 +126,16 @@ payload_schema = {
 COLLECTION_NAME = "episodic_memory"
 VECTOR_SIZE = 1024  # 与mxbai-embed-large模型输出维度一致
 
+weaviate_client = weaviate.connect_to_custom(
+    http_host="localhost",
+    http_port=8080,
+    http_secure=False,
+    grpc_host="localhost",
+    grpc_port=50051,
+    grpc_secure=False,
+    auth_credentials=None
+)
+
 # def init_user_collection(user_id: str):
 #     collection_name = get_collection_name(user_id)
 #     qdrant_client.recreate_collection(
@@ -156,7 +166,7 @@ def init_user_collection_v2(user_id: str):
         Property(name="context_tags", data_type=DataType.TEXT_ARRAY),
         Property(name="conversation_summary", data_type=DataType.TEXT),
         Property(name="what_worked", data_type=DataType.TEXT),
-        Property(name="what_to_avoid", data_type=DataType.TEXT),       
+        Property(name="what_to_avoid", data_type=DataType.TEXT),
     ]
 )
 
@@ -165,14 +175,14 @@ try:
     # 连接到本地Weaviate
     vdb_client = weaviate.connect_to_local()
     print("连接状态:", vdb_client.is_ready())
-    
+
     # 初始化集合
     collection_name = "test_collection"
     if not vdb_client.collections.exists(collection_name):
         vdb_client.collections.delete(collection_name)
         print(f"集合 {collection_name} 已存在")
     else:
-        
+
         init_user_collection_v2(collection_name)
         print(f"集合 {collection_name} 创建成功")
 except Exception as e:
