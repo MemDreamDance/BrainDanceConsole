@@ -31,11 +31,6 @@ def export_data(collection_src: Collection) -> List:
 
     return objects
 
-def save_objects(coll_name: str, coll_objects: List):
-    with open(f"exported_data_{coll_name}.json", "w") as f:
-        json.dump(coll_objects, f, indent=2)
-    return True
-
 def export_weaviate_snapshot(user_id="default_user", collection_name=None, snapshot_path=None):
     """
     Export Qdrant collection to a snapshot file
@@ -65,58 +60,12 @@ def export_weaviate_snapshot(user_id="default_user", collection_name=None, snaps
     try:
         # Check if the collection exists
         collections = weaviate_client.collections.get(collection_name)
-        # collection_exists = any(col.name == collection_name for col in collections.collections)
-        #
-        # if not collection_exists:
-        #     print(f"Collection '{collection_name}' does not exist")
-        #     return None
-
-        # print(f"Multi tenancy enabled: {collections.config.get().multi_tenancy_config}")
         coll_objects = export_data(collections)
-        # save_objects(collection_name, coll_objects)
-        # print(f"Collection {collection_name} saved with {len(coll_objects)} objects")
-            
-        # Step 1: Create snapshot
         print(f"Creating snapshot for collection '{collection_name}'...")
-        # Use REST API to create snapshot
-        # qdrant_host = config["vector_store"]["config"]["host"]
-        # qdrant_port = config["vector_store"]["config"]["port"]
-        # create_snapshot_url = f"http://{qdrant_host}:{qdrant_port}/collections/{collection_name}/snapshots"
-        
-        # response = requests.post(create_snapshot_url)
-        # if response.status_code != 200:
-        #     print(f"Failed to create snapshot: {response.text}")
-        #     return None
-        
-        # Print full response for debugging
-        # print(f"API response: {response.text}")
-        # response_data = response.json()
-        
-        # # Try to get snapshot name from response, handle possible different response structures
-        # if "name" in response_data:
-        #     snapshot_name = response_data["name"]
-        # elif "result" in response_data and "name" in response_data["result"]:
-        #     snapshot_name = response_data["result"]["name"]
-        # else:
-        #     # If name is not found, use timestamp as name
-        #     snapshot_name = f"snapshot-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-        #     print(f"Unable to get snapshot name from response, using temporary name: {snapshot_name}")
-        
-        # print(f"Snapshot created successfully: {snapshot_name}")
-        
-        # Step 2: Download snapshot
-        # print(f"Downloading snapshot...")
-        # download_snapshot_url = f"http://{qdrant_host}:{qdrant_port}/collections/{collection_name}/snapshots/{snapshot_name}"
-        #
-        # with requests.get(download_snapshot_url, stream=True) as r:
-        #     if r.status_code != 200:
-        #         print(f"Failed to download snapshot: {r.text}")
-        #         return None
-        #
-        #     r.raise_for_status()
+
         output_file = f"{snapshot_path}.snapshot"
         with open(output_file, 'w') as f:
-            json.dump(coll_objects, f, indent=2)
+            json.dump(coll_objects, f, indent=2, default=str)
         
         full_path = os.path.abspath(f"{snapshot_path}.snapshot")
         print(f"Snapshot successfully exported to: {full_path}")

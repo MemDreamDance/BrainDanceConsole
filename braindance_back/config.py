@@ -187,5 +187,3 @@ try:
         print(f"集合 {collection_name} 创建成功")
 except Exception as e:
     print(f"连接失败: {e}")
-finally:
-    weaviate_client.close()
