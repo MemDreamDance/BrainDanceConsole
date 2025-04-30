@@ -198,6 +198,7 @@ export const ChatWindow = ({
         // Use streaming API
         await chatService.sendMessageStream(
           userMessage.text,
+          messages,
           // Update message with each received chunk
           (chunk) => {
             setMessages(prev =>
