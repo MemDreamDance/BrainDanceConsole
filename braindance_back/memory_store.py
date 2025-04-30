@@ -7,6 +7,7 @@ import traceback
 
 from weaviate.collections import Collection
 from weaviate.collections.classes.types import GeoCoordinate
+from weaviate.util import generate_uuid5
 
 from .config import get_collection_name
 from .config import weaviate_client
@@ -15,19 +16,22 @@ def export_data(collection_src: Collection) -> List:
     objects = list()
 
     for item in collection_src.iterator(include_vector=True):
-
         print(f"property: {item.properties}, vector: {item.vector}")
-        object = item.properties
-        for k, v in object.items():
+        data = dict()
+        properties = dict()
+        for k, v in item.properties.items():
             if isinstance(v, (datetime, date)):
-                object[k] = v.isoformat()
+                properties[k] = v.isoformat()
             if isinstance(v, GeoCoordinate):
-                object[k] = v._to_dict()
+                properties[k] = v._to_dict()
+            elif v is not None:
+                properties[k] = v
 
+        data["uuid"] = str(item.uuid)
+        data["properties"] = properties
         for k, v in item.vector.items():
-            object[f"vector_{k}"]=v
-        object["uuid"] = str(item.uuid)
-        objects.append(object)
+            data[f"vector_{k}"]=v
+        objects.append(data)
 
     return objects
 
@@ -51,7 +55,7 @@ def export_weaviate_snapshot(user_id="default_user", collection_name=None, snaps
     if not os.path.exists(memory_dir):
         print(f"Creating directory: {memory_dir}")
         os.makedirs(memory_dir)
-    
+
     if snapshot_path is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         snapshot_filename = f"{collection_name}_snapshot_{timestamp}"
@@ -66,32 +70,61 @@ def export_weaviate_snapshot(user_id="default_user", collection_name=None, snaps
         output_file = f"{snapshot_path}.snapshot"
         with open(output_file, 'w') as f:
             json.dump(coll_objects, f, indent=2, default=str)
-        
+
         full_path = os.path.abspath(f"{snapshot_path}.snapshot")
         print(f"Snapshot successfully exported to: {full_path}")
         return full_path
-        
+
     except Exception as e:
         print(f"Error exporting snapshot: {str(e)}")
         traceback.print_exc()  # Print full error stack
         return None
 
+def import_weaviate_snapshot(snapshot_path, user_id="default_user", collection_name=None) -> bool:
+    if collection_name is None:
+        collection_name = get_collection_name(user_id)
+
+    try:
+        # Remove existing collection
+        weaviate_client.collections.delete(collection_name)
+
+        collection = weaviate_client.collections.get(collection_name)
+        with open(snapshot_path, 'r') as f:
+            collection_json = json.load(f)
+
+            for item in collection_json:
+                properties = item['properties']
+                uuid = generate_uuid5(item['properties'])
+                vectors = item['vector_default']
+                print(f"Importing snapshot uuid: {uuid}")
+                with collection.batch.dynamic() as batch:
+                    batch.add_object(
+                        uuid=uuid,
+                        properties=properties,
+                        vector=vectors,
+                    )
+        return True
+
+    except Exception as e:
+        print(f"Error importing snapshot: {str(e)}")
+        traceback.print_exc()
+        return False
 
 # def import_qdrant_snapshot(snapshot_path, user_id="default_user", collection_name=None):
 #     """
 #     Import Qdrant collection from a snapshot file
-    
+
 #     Args:
 #         snapshot_path: Path to the snapshot file
 #         user_id: User ID to specify which collection to import to
 #         collection_name: Name of the collection to import to, default is based on user_id
-        
+
 #     Returns:
 #         bool: Whether the import was successful
 #     """
 #     if collection_name is None:
 #         collection_name = get_collection_name(user_id)
-    
+
 #     try:
 #         # Check if the snapshot file exists
 #         if not os.path.exists(snapshot_path):
@@ -143,14 +176,14 @@ def export_weaviate_snapshot(user_id="default_user", collection_name=None, snaps
 #             print("用户ID替换失败")
 #             qdrant_client.delete_collection(collection_name)  # 清理失败数据
 #             return False
-        
+
 #         return True
-        
+
 #     except Exception as e:
 #         print(f"Error importing snapshot: {str(e)}")
 #         traceback.print_exc()  # Print full stack for debugging
 #         return False
-    
+
 # 使用
 # def update_user_id_in_collection(collection_name, target_user_id):
 #     try:

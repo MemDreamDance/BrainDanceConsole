@@ -1,3 +1,5 @@
+import tempfile
+
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import traceback
@@ -8,7 +10,7 @@ import json
 import os
 from langchain_core.messages import HumanMessage, SystemMessage
 from .memory_v2 import add_episodic_memory_v2
-from .memory_store import export_weaviate_snapshot
+from .memory_store import export_weaviate_snapshot, import_weaviate_snapshot
 
 # Set up logging
 logging.basicConfig(
@@ -49,7 +51,31 @@ def export_memory():
 @app.route('/api/import-memory', methods=['POST'])
 def import_memory():
     """Importing a memory snapshot from an uploaded file"""
-    return jsonify({"error": "Not implemented"}), 501
+    try:
+        user_id = request.form.get('user_id', 'default_user')
+        if 'snapshot' not in request.files:
+            print("Uploaded file not found")
+            return jsonify({"error": "Uploaded file not found"}), 400
+
+        file = request.files['snapshot']
+
+        temp_file_path = tempfile.mktemp(suffix='.snapshot')
+        file.save(temp_file_path)
+        file_size = os.path.getsize(temp_file_path)
+        print(f"Saved temporary file: {temp_file_path}, size: {file_size} bytes")
+
+        success = import_weaviate_snapshot(temp_file_path, user_id=user_id)
+        if success:
+            print("Import Success")
+            return jsonify({"message": "Memory snapshot imported successfully"})
+        else:
+            print("Import failed")
+            return jsonify({"error": "Memory snapshot import failed"}), 500
+
+    except Exception as e:
+        print(f"Import Error: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 #     temp_file_path = None
 #     try:
