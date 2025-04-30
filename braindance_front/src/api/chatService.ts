@@ -1,4 +1,5 @@
 // Chat service API for communicating with the backend
+import { Message } from '../App';
 import { getUserId } from '../utils/userIdentifier'
 const API_BASE_URL = `${process.env.REACT_APP_BACKEND_URL}/api`;  // Ensure the port is consistent with memoryService
 
@@ -6,6 +7,7 @@ export const chatService = {
     // Send a message to the AI and get a streaming response
     sendMessageStream: async (
         message: string,
+        history: Message[],
         onChunk: (chunk: string) => void,
         onDone: () => void,
         onError: (error: Error) => void
@@ -23,6 +25,10 @@ export const chatService = {
                 },
                 body: JSON.stringify({
                     message,
+                    history: history.map(msg => ({
+                        role: msg.isUser ? 'user' : 'assistant',
+                        content: msg.text
+                    })),
                     user_id: userId
                 })
             });

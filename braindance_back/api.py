@@ -112,8 +112,10 @@ def chat():
 
         message = data['message']
         user_id = data.get('user_id', 'default_user')
+        history = data['history']
 
         print(f"Received chat message from user {user_id}: {message}")
+        print(f"History: {history}")
 
         # Use a generator function for streaming response
         def generate():
@@ -127,7 +129,10 @@ def chat():
 
                 # 生成助手响应
                 system_prompt = f"You are a helpful AI. Answer the question based on query and memories.\nUser Memories:\n{memories_str}"
-                messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": message}]
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    *history,
+                    {"role": "user", "content": message}]
 
                 # Use streaming output
                 stream = openai_client.chat.completions.create(
