@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { chatService } from '../api/chatService';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
+import { Message } from '../App';
 
 const ChatContainer = styled(motion.div)`
   background: rgba(10, 10, 10, 0.9);
@@ -152,15 +153,13 @@ const TypingIndicator = styled.span`
   }
 `;
 
-interface Message {
-  id: number;
-  text: string;
-  isUser: boolean;
-  isTyping?: boolean;
-}
-
-export const ChatWindow = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
+export const ChatWindow = ({
+  messages,
+  setMessages,
+}: {
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+}) => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);

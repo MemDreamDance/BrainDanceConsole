@@ -34,10 +34,18 @@ const StatusMessage = styled.div`
   min-height: 1.5rem;
 `;
 
+export interface Message {
+  id: number;
+  text: string;
+  isUser: boolean;
+  isTyping?: boolean;
+}
+
 export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // Handle memory download
   const handleDownloadMemory = async () => {
@@ -45,8 +53,20 @@ export default function App() {
     setStatusMessage('Exporting memory...');
 
     try {
-      const fileName = await memoryService.exportMemory();
-      setStatusMessage(`Memory exported: ${fileName}`);
+      const exportedHistory = messages.map(message => ({
+        "role": message.isUser ? "user" : "assistant",
+        "content": message.text
+      }));
+      const blob = new Blob([JSON.stringify({ "messages": exportedHistory })], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'memory.snapshot';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatusMessage(`Memory exported: memory.snapshot`);
     } catch (error) {
       setStatusMessage(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -62,16 +82,29 @@ export default function App() {
     setIsUploading(true);
     setStatusMessage(`Uploading memory: ${file.name}...`);
 
-    try {
-      await memoryService.importMemory(file);
-      setStatusMessage(`Memory successfully imported`);
-    } catch (error) {
-      setStatusMessage(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsUploading(false);
-      // Reset file input
-      if (event.target) event.target.value = '';
-    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsedMessages: { messages: { role: string, content: string }[] } = JSON.parse(content);
+        if (!parsedMessages.messages || !Array.isArray(parsedMessages.messages)) {
+          throw new Error('Invalid file format. Expected an array of messages.');
+        }
+        setMessages(parsedMessages.messages.map((msg, index) => ({
+          id: index,
+          text: msg.content,
+          isUser: msg.role === 'user',
+          isTyping: false,
+        })));
+        setStatusMessage(`Memory successfully imported`);
+      } catch (error) {
+        console.error('Error parsing JSON:', error);
+        setStatusMessage(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -113,7 +146,7 @@ export default function App() {
 
         <StatusMessage>{statusMessage}</StatusMessage>
 
-        <ChatWindow />
+        <ChatWindow messages={messages} setMessages={setMessages} />
       </AppContainer>
     </ThemeProvider>
   );
