@@ -49,30 +49,29 @@ export default function App() {
 
   // Handle memory download
   const handleDownloadMemory = async () => {
-    // setIsDownloading(true);
-    // setStatusMessage('Exporting memory...');
+    setIsDownloading(true);
+    setStatusMessage('Exporting memory...');
 
-    // try {
-    //   const fileName = await memoryService.exportMemory();
-    //   setStatusMessage(`Memory exported: ${fileName}`);
-    // } catch (error) {
-    //   setStatusMessage(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    // } finally {
-    //   setIsDownloading(false);
-    // }
-    const exportedHistory = messages.map(message => ({
-      "role": message.isUser ? "user" : "assistant",
-      "content": message.text
-    }));
-    const blob = new Blob([JSON.stringify({ "messages": exportedHistory})], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'memory.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const exportedHistory = messages.map(message => ({
+        "role": message.isUser ? "user" : "assistant",
+        "content": message.text
+      }));
+      const blob = new Blob([JSON.stringify({ "messages": exportedHistory })], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'memory.snapshot';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setStatusMessage(`Memory exported: memory.snapshot`);
+    } catch (error) {
+      setStatusMessage(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Handle memory upload
@@ -83,16 +82,29 @@ export default function App() {
     setIsUploading(true);
     setStatusMessage(`Uploading memory: ${file.name}...`);
 
-    try {
-      await memoryService.importMemory(file);
-      setStatusMessage(`Memory successfully imported`);
-    } catch (error) {
-      setStatusMessage(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsUploading(false);
-      // Reset file input
-      if (event.target) event.target.value = '';
-    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const parsedMessages: { messages: { role: string, content: string }[] } = JSON.parse(content);
+        if (!parsedMessages.messages || !Array.isArray(parsedMessages.messages)) {
+          throw new Error('Invalid file format. Expected an array of messages.');
+        }
+        setMessages(parsedMessages.messages.map((msg, index) => ({
+          id: index,
+          text: msg.content,
+          isUser: msg.role === 'user',
+          isTyping: false,
+        })));
+        setStatusMessage(`Memory successfully imported`);
+      } catch (error) {
+        console.error('Error parsing JSON:', error);
+        setStatusMessage(`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
