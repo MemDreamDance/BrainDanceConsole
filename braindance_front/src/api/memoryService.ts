@@ -85,5 +85,28 @@ export const memoryService = {
             console.error("Memory import failed:", error);
             throw error;
         }
+    },
+
+    saveEpisodicMemory: async (): Promise<void> => {
+        try {
+            const userId = await getUserId();
+
+            const resp = await fetch(`${API_BASE_URL}/save_episodic_memory`, {
+                method: 'POST',
+                mode: "cors",
+                headers: {
+                    'Accept': 'application/octet-stream',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user_id: userId
+                })
+            })
+
+            console.log("Episodic memory save response:", resp.status, resp.statusText);
+        } catch (error) {
+            console.error("Memory import failed:", error);
+            throw error;
+        }
     }
 };

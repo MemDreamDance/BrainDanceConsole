@@ -16,3 +16,15 @@ export const cyberTheme = {
         secondary: '0 0 10px #ff003c, 0 0 20px #ff003c, 0 0 30px #ff003c'
     }
 };
+
+export const creatorTheme = {
+    ...cyberTheme,
+    colors: {
+        primary: '#ff00ff',
+        secondary: '#ff003c',
+        background: '#0a0a0a',
+        neonBlue: '#00f3ff',
+        neonPink: '#ff00ff',
+        text: '#ffffff'
+    }
+}
