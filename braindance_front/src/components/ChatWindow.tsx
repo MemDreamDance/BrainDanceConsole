@@ -171,7 +171,7 @@ export const ChatWindow = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async (v2: boolean) => {
+  const handleSend = async () => {
     if (inputText.trim() && !isLoading) {
       const userMessage: Message = {
         id: Date.now(),
@@ -201,7 +201,7 @@ export const ChatWindow = ({
         await chatService.sendMessageStream(
           userMessage.text,
           messages,
-          v2,
+          creatorMode,
           // Update message with each received chunk
           (chunk) => {
             setMessages(prev =>
@@ -304,18 +304,13 @@ export const ChatWindow = ({
         <InputField
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend(false)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
           placeholder="Chat with memory..."
           disabled={isLoading}
         />
-        <SendButton onClick={() => handleSend(false)} disabled={isLoading}>
+        <SendButton onClick={handleSend} disabled={isLoading}>
           {isLoading ? 'SENDING...' : 'SEND'}
         </SendButton>
-        {creatorMode && (
-          <SendButton onClick={() => handleSend(true)} disabled={isLoading}>
-            {isLoading ? 'SENDING...' : 'SEND V2'}
-          </SendButton>
-        )}
       </InputContainer>
     </ChatContainer>
   );
