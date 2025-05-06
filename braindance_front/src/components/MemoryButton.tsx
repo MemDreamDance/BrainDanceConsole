@@ -29,7 +29,7 @@ export const MemoryButton = styled(motion.button)`
 
   &:hover {
     box-shadow: 0 0 20px ${({ theme }) => theme.colors.primary};
-    
+
     &::before {
       width: 300px;
       height: 300px;

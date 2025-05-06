@@ -8,6 +8,7 @@ export const chatService = {
     sendMessageStream: async (
         message: string,
         history: Message[],
+        v2: boolean,
         onChunk: (chunk: string) => void,
         onDone: () => void,
         onError: (error: Error) => void
@@ -16,7 +17,7 @@ export const chatService = {
             const userId = await getUserId();
             console.log(`Sending message to AI (streaming) for user ${userId}:`, message);
 
-            const response = await fetch(`${API_BASE_URL}/chat`, {
+            const response = await fetch(`${API_BASE_URL}/chat${v2 ? 'V2' : ''}`, {
                 method: 'POST',
                 mode: 'cors',
                 headers: {

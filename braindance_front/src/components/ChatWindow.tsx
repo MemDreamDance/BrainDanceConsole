@@ -39,12 +39,12 @@ const MessageBubble = styled.div<{ $isUser: boolean }>`
   max-width: 80%;
   align-self: ${({ $isUser }) => ($isUser ? 'flex-end' : 'flex-start')};
   position: relative;
-  
+
   /* Markdown styles */
   & .markdown-content {
     font-family: ${({ theme }) => theme.fonts.secondary};
     color: ${({ theme }) => theme.colors.text};
-    
+
     & p {
       margin: 0.5em 0;
       &:first-child {
@@ -54,7 +54,7 @@ const MessageBubble = styled.div<{ $isUser: boolean }>`
         margin-bottom: 0;
       }
     }
-    
+
     & a {
       color: ${({ theme }) => theme.colors.primary};
       text-decoration: none;
@@ -62,26 +62,26 @@ const MessageBubble = styled.div<{ $isUser: boolean }>`
         text-decoration: underline;
       }
     }
-    
+
     & pre {
       background: rgba(0, 0, 0, 0.3);
       border-radius: 4px;
       padding: 8px;
       overflow-x: auto;
     }
-    
+
     & code {
       font-family: monospace;
       background: rgba(0, 0, 0, 0.2);
       padding: 2px 4px;
       border-radius: 3px;
     }
-    
+
     & ul, & ol {
       padding-left: 20px;
       margin: 0.5em 0;
     }
-    
+
     & blockquote {
       border-left: 2px solid ${({ theme }) => theme.colors.primary};
       margin-left: 0;
@@ -89,20 +89,20 @@ const MessageBubble = styled.div<{ $isUser: boolean }>`
       padding-left: 10px;
       color: rgba(255, 255, 255, 0.7);
     }
-    
+
     & img {
       max-width: 100%;
     }
-    
+
     & table {
       border-collapse: collapse;
       width: 100%;
-      
+
       & th, & td {
         border: 1px solid rgba(255, 255, 255, 0.2);
         padding: 4px 8px;
       }
-      
+
       & th {
         background: rgba(0, 0, 0, 0.2);
       }
@@ -146,7 +146,7 @@ const TypingIndicator = styled.span`
     animation: blink 1s infinite;
     margin-left: 2px;
   }
-  
+
   @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
@@ -156,9 +156,11 @@ const TypingIndicator = styled.span`
 export const ChatWindow = ({
   messages,
   setMessages,
+  creatorMode,
 }: {
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  creatorMode: boolean;
 }) => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -169,7 +171,7 @@ export const ChatWindow = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async () => {
+  const handleSend = async (v2: boolean) => {
     if (inputText.trim() && !isLoading) {
       const userMessage: Message = {
         id: Date.now(),
@@ -199,6 +201,7 @@ export const ChatWindow = ({
         await chatService.sendMessageStream(
           userMessage.text,
           messages,
+          v2,
           // Update message with each received chunk
           (chunk) => {
             setMessages(prev =>
@@ -301,12 +304,15 @@ export const ChatWindow = ({
         <InputField
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+          onKeyPress={(e) => e.key === 'Enter' && handleSend(false)}
           placeholder="Chat with memory..."
           disabled={isLoading}
         />
-        <SendButton onClick={handleSend} disabled={isLoading}>
+        <SendButton onClick={() => handleSend(false)} disabled={isLoading}>
           {isLoading ? 'SENDING...' : 'SEND'}
+        </SendButton>
+        <SendButton onClick={() => handleSend(true)} disabled={isLoading}>
+          {isLoading ? 'SENDING...' : 'SEND V2'}
         </SendButton>
       </InputContainer>
     </ChatContainer>

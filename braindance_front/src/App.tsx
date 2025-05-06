@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ThemeProvider } from 'styled-components';
 import { GlobalStyle } from './styles/globalStyles';
-import { cyberTheme } from './styles/theme';
+import { creatorTheme, cyberTheme } from './styles/theme';
 import { CyberBackground, GridLines } from './components/CyberBackground';
 import { NeonText } from './components/NeonText';
 import { MemoryButton } from './components/MemoryButton';
 import { ChatWindow } from './components/ChatWindow';
+import { ModeSwitch } from './components/ModeSwitch';
 // import { motion } from 'framer-motion';
 import styled from 'styled-components';
 import { memoryService } from './api/memoryService';
@@ -44,8 +45,10 @@ export interface Message {
 export default function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSavingEpisodicMemory, setIsSavingEpisodicMemory] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
+  const [creatorMode, setCreatorMode] = useState<boolean>(false);
 
   // Handle memory download
   const handleDownloadMemory = async () => {
@@ -107,8 +110,19 @@ export default function App() {
     reader.readAsText(file);
   };
 
+  const handleSaveEpisodicMemory = async () => {
+    setIsSavingEpisodicMemory(true);
+    try {
+      await memoryService.saveEpisodicMemory();
+    } catch (error) {
+      setStatusMessage(`Save failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsSavingEpisodicMemory(false);
+    }
+  }
+
   return (
-    <ThemeProvider theme={cyberTheme}>
+    <ThemeProvider theme={creatorMode ? creatorTheme : cyberTheme}>
       <GlobalStyle />
       <CyberBackground />
       <GridLines />
@@ -135,6 +149,15 @@ export default function App() {
           >
             {isUploading ? 'Uploading...' : 'Load Memory'}
           </MemoryButton>
+          <ModeSwitch creatorMode={creatorMode} setCreatorMode={setCreatorMode} />
+          {creatorMode && (
+            <MemoryButton
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSaveEpisodicMemory}>
+              {isSavingEpisodicMemory ? 'Saving...' : 'Save Episodic Memory'}
+            </MemoryButton>
+          )}
           <input
             id="memory-upload"
             type="file"
@@ -146,7 +169,7 @@ export default function App() {
 
         <StatusMessage>{statusMessage}</StatusMessage>
 
-        <ChatWindow messages={messages} setMessages={setMessages} />
+        <ChatWindow messages={messages} setMessages={setMessages} creatorMode={creatorMode} />
       </AppContainer>
     </ThemeProvider>
   );
