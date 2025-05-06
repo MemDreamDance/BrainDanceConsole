@@ -61,12 +61,12 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'memory.snapshot';
+      a.download = 'memory.json';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      setStatusMessage(`Memory exported: memory.snapshot`);
+      setStatusMessage(`Memory exported: memory.json`);
     } catch (error) {
       setStatusMessage(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -139,7 +139,7 @@ export default function App() {
             id="memory-upload"
             type="file"
             hidden
-            accept=".snapshot"
+            accept=".json"
             onChange={handleUploadMemory}
           />
         </ControlPanel>
