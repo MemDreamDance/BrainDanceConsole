@@ -311,9 +311,11 @@ export const ChatWindow = ({
         <SendButton onClick={() => handleSend(false)} disabled={isLoading}>
           {isLoading ? 'SENDING...' : 'SEND'}
         </SendButton>
-        <SendButton onClick={() => handleSend(true)} disabled={isLoading}>
-          {isLoading ? 'SENDING...' : 'SEND V2'}
-        </SendButton>
+        {creatorMode && (
+          <SendButton onClick={() => handleSend(true)} disabled={isLoading}>
+            {isLoading ? 'SENDING...' : 'SEND V2'}
+          </SendButton>
+        )}
       </InputContainer>
     </ChatContainer>
   );
